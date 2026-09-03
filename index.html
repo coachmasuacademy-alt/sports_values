@@ -243,21 +243,20 @@
     { id: 'V12', title: '文化・アイデンティティ', desc: '地域や学校の誇り、文化の継承' }
   ];
 
-  // ★ 価値カードと課題のマッチングテーブル（どの価値がどの課題に結びつきやすいか）
   const valueToChallengeMapping = {
-    'C1': ['V1', 'V2', 'V4', 'V7'], // 小学生
-    'C2': ['V2', 'V3', 'V4', 'V5'], // 中高生
-    'C3': ['V1', 'V2', 'V5', 'V6'], // 大学生
-    'C4': ['V1', 'V3', 'V6', 'V11'], // 働き盛り
-    'C5': ['V2', 'V5', 'V6', 'V9'], // 子育て世代
-    'C6': ['V1', 'V5', 'V8', 'V9'], // シニア
-    'C7': ['V5', 'V8', 'V10', 'V12'], // 多世代
-    'C8': ['V2', 'V4', 'V9', 'V11'] // 障害のある方
+    'C1': ['V1', 'V2', 'V4', 'V7'],
+    'C2': ['V2', 'V3', 'V4', 'V5'],
+    'C3': ['V1', 'V2', 'V5', 'V6'],
+    'C4': ['V1', 'V3', 'V6', 'V11'],
+    'C5': ['V2', 'V5', 'V6', 'V9'],
+    'C6': ['V1', 'V5', 'V8', 'V9'],
+    'C7': ['V5', 'V8', 'V10', 'V12'],
+    'C8': ['V2', 'V4', 'V9', 'V11']
   };
 
   // --- 状態管理 ---
   let state = {
-    step: 1,
+    step: 1, // STEP1から開始（タイトル画面）
     groupName: '',
     challengeId: '',
     selectedValues: [],
@@ -284,7 +283,7 @@
   }
 
   function resetGame() {
-    if(confirm('データをご破算にして最初からやり直しますか？\n※価値カードも選び直しになります。')) {
+    if(confirm('データをご破算にして最初からやり直しますか？\n※入力内容や価値カードも選び直しになります。')) {
       localStorage.removeItem('sportsValueGame');
       location.reload();
     }
@@ -298,23 +297,57 @@
     saveState();
     app.innerHTML = '';
     
-    const stepNames = ['', 'グループ登録', '価値の選択', '課題の決定', '企画の作成', '発表まとめ'];
+    // ★ ステップの名称に「ゲームのルール」を追加し、以降を一つずつずらしました
+    const stepNames = ['', 'ゲームのルール', 'グループ登録', '価値の選択', '課題の決定', '企画の作成', '発表まとめ'];
     stepIndicator.innerText = `STEP ${state.step}: ${stepNames[state.step] || ''}`;
 
     bottomNav.style.display = 'flex';
     document.getElementById('btnPrev').style.visibility = state.step > 1 ? 'visible' : 'hidden';
 
     switch (state.step) {
-      case 1: renderStep1(); break;
-      case 2: renderStep2(); break; // 価値カード選択
-      case 3: renderStep3(); break; // 課題決定（マッチング）
-      case 4: renderStep4(); break; // 企画作成
-      case 5: renderStep5(); break; // まとめ
+      case 1: renderStep1(); break; // タイトル＆ルール画面
+      case 2: renderStep2(); break; // グループ登録
+      case 3: renderStep3(); break; // 価値カード選択
+      case 4: renderStep4(); break; // 課題決定（マッチング）
+      case 5: renderStep5(); break; // 企画作成
+      case 6: renderStep6(); break; // まとめ・提出
     }
     window.scrollTo(0, 0);
   }
 
+  // ★ 新設：STEP 1 (タイトル＆ルール画面)
   function renderStep1() {
+    app.innerHTML = `
+      <div class="card">
+        <h1 style="text-align:center; font-size: 24px; color: var(--primary-color);">スポーツ価値カードゲーム</h1>
+        <p style="text-align:center; font-weight:bold; color: #e74c3c; margin-bottom: 20px;">「スポーツは、誰に、どんな価値を生み出すのか？」</p>
+        
+        <div style="background: #eaf2f8; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+          <h3 style="margin-top:0; font-size:16px;">🎯 ゲームの目的</h3>
+          <p style="font-size: 14px; margin:0;">
+            皆さんは地域や大学のスポーツイベントを企画するチームです。<br>
+            限られた資源（予算や時間）の中で、「誰に、どのような価値を届けるスポーツ活動か」を考え、魅力的な企画を作り上げましょう！
+          </p>
+        </div>
+
+        <h3 style="font-size:16px; border-bottom: 2px solid var(--border-color); padding-bottom:5px;">📝 ゲームの進め方</h3>
+        <ol style="font-size: 14px; padding-left: 20px; line-height: 1.8; color: #444;">
+          <li><strong>【グループ登録】</strong> チーム名を決めます。</li>
+          <li><strong>【価値の選択】</strong> スポーツを通じて社会に届けたい「価値」を3つ選びます。</li>
+          <li><strong>【課題の決定】</strong> 選んだ価値をもとに、対象者と課題が割り当てられます。</li>
+          <li><strong>【企画の作成】</strong> 課題を解決し、価値を届ける活動を企画します。予算（100pt）の使い方も考えます。</li>
+          <li><strong>【提出・発表】</strong> 企画をまとめ、教員のプロジェクターへ提出して発表を行います。</li>
+        </ol>
+        
+        <p style="text-align:center; font-size:14px; margin-top:25px; color:#666;">画面下の「次へ進む」を押して開始してください。</p>
+      </div>
+      
+      <button class="btn btn-secondary" onclick="resetGame()" style="margin-top:20px; background-color: #95a5a6;">最初からやり直す（データリセット）</button>
+    `;
+  }
+
+  // 以降、STEP2〜6（元のSTEP1〜5）
+  function renderStep2() {
     app.innerHTML = `
       <div class="card">
         <h2>グループ情報の入力</h2>
@@ -322,11 +355,10 @@
         <label>グループ名</label>
         <input type="text" id="inputGroupName" placeholder="例: Aグループ" value="${state.groupName}">
       </div>
-      <button class="btn btn-secondary" onclick="resetGame()" style="margin-top:40px;">データをリセットする</button>
     `;
   }
 
-  function renderStep2() {
+  function renderStep3() {
     state.challengeId = ''; 
 
     let html = `
@@ -391,7 +423,7 @@
     saveState();
   }
 
-  function renderStep3() {
+  function renderStep4() {
     if (!state.challengeId) {
       determineChallengeByValues(); 
     }
@@ -410,7 +442,7 @@
     `;
   }
 
-  function renderStep4() {
+  function renderStep5() {
     const b = state.project.budget;
     app.innerHTML = `
       <div class="card">
@@ -504,7 +536,7 @@
     }
   };
 
-  function renderStep5() {
+  function renderStep6() {
     const challenge = challengeCards.find(c => c.id === state.challengeId);
     const values = state.selectedValues.map(id => valueCards.find(v => v.id === id).title).join('、');
     const b = state.project.budget;
@@ -602,7 +634,6 @@
     `;
   }
 
-  // ★ スプレッドシートへの送信処理（CORS対応版）
   window.submitToGoogleSheet = function() {
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -633,12 +664,11 @@
 
     fetch(GAS_URL, {
       method: 'POST',
-      mode: 'no-cors', // ★追加：ローカルファイルからのCORSエラーを回避する魔法の設定
+      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload)
     })
     .then(response => {
-      // no-corsモードでは詳細な返事は受け取れないが、エラーが起きなければ成功とみなす
       btn.innerText = "提出完了しました！";
       btn.style.backgroundColor = "#6c757d";
       alert("教員のプロジェクターへ提出が完了しました！\n発表の順番を待ってください。");
@@ -652,10 +682,10 @@
   };
 
   function saveCurrentStepData() {
-    if (state.step === 1) {
+    if (state.step === 2) {
       state.groupName = document.getElementById('inputGroupName').value;
     }
-    if (state.step === 4) {
+    if (state.step === 5) {
       state.project.title = document.getElementById('p_title').value;
       state.project.target = document.getElementById('p_target').value;
       state.project.content = document.getElementById('p_content').value;
@@ -681,15 +711,15 @@
   window.nextStep = function() {
     saveCurrentStepData();
 
-    if (state.step === 1 && !state.groupName) {
+    if (state.step === 2 && !state.groupName) {
       alert('グループ名を入力してください');
       return;
     }
-    if (state.step === 2 && state.selectedValues.length !== 3) {
+    if (state.step === 3 && state.selectedValues.length !== 3) {
       alert('価値カードを3枚選んでください');
       return;
     }
-    if (state.step === 4) {
+    if (state.step === 5) {
       const b = state.project.budget;
       const total = b.equipment + b.human + b.prize + b.pr + b.other;
       if (total > 100) {
@@ -698,7 +728,7 @@
       }
     }
 
-    if (state.step < 5) {
+    if (state.step < 6) {
       state.step++;
       render();
     }
