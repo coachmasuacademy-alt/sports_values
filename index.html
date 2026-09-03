@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スポーツ価値カードゲーム</title>
+  <style>
+    :root {
+      --primary-color: #0056b3;
+      --bg-color: #f4f6f8;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+      --border-color: #dddddd;
+    }
+    
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 15px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 80px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    h1, h2, h3 {
+      color: var(--primary-color);
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+      margin-top: 20px;
+      color: #2c3e50;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .btn {
+      display: inline-block;
+      width: 100%;
+      background: var(--primary-color);
+      color: white;
+      padding: 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      cursor: pointer;
+      margin-top: 20px;
+      box-sizing: border-box;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      margin-top: 10px;
+    }
+
+    .btn:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .value-card {
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      cursor: pointer;
+      background: var(--card-bg);
+      user-select: none;
+    }
+
+    .value-card.selected {
+      border-color: var(--primary-color);
+      background-color: #e3f2fd;
+    }
+
+    .value-card h4 {
+      margin: 0 0 5px 0;
+      font-size: 15px;
+    }
+
+    .value-card p {
+      margin: 0;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: 15px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      max-width: 600px;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    .bottom-nav button {
+      width: 48%;
+      margin: 0;
+    }
+
+    .step-indicator {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #666;
+    }
+
+    .summary-item {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px dashed var(--border-color);
+    }
+    .summary-item:last-child {
+      border-bottom: none;
+    }
+    .summary-label {
+      font-size: 12px;
+      color: #666;
+    }
+    .summary-value {
+      font-size: 16px;
+      font-weight: bold;
+    }
+    
+    .resource-box {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 10px;
+      border: 1px solid #e9ecef;
+    }
+
+    .budget-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      background: #ffffff;
+      padding: 8px 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .budget-row label {
+      margin: 0;
+      font-weight: normal;
+      font-size: 14px;
+      color: #333;
+    }
+    .budget-row input[type="number"] {
+      width: 70px;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      text-align: right;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="step-indicator" id="stepIndicator"></div>
+    <div id="app"></div>
+  </div>
+
+  <div class="bottom-nav" id="bottomNav" style="display: none;">
+    <button class="btn btn-secondary" id="btnPrev" onclick="prevStep()">戻る</button>
+    <button class="btn" id="btnNext" onclick="nextStep()">次へ進む</button>
+  </div>
+
+<script>
+  // ----------------------------------------------------
+  // ★ここに取得したGASのウェブアプリURLを貼り付けてください★
+  // ----------------------------------------------------
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwXO-aWbReJWCm3zx3ziwhQdU_qKW3GwWfHmS76iINQZPpwTxu1FWZdEsHlS2_hPvd0/exec";
+
+  // --- データ定義 ---
+  const challengeCards = [
+    { id: 'C1', title: '小学生の体力向上', condition: '遊び感覚で楽しく体を動かせる活動' },
+    { id: 'C2', title: '中高生の部活離れ', condition: '競技志向ではなく、ゆるく楽しく続けられる活動' },
+    { id: 'C3', title: '大学生の健康づくり', condition: '運動不足の学生が気軽に参加したくなる活動' },
+    { id: 'C4', title: '働き盛りのストレス解消', condition: '仕事帰りや休日にリフレッシュできる活動' },
+    { id: 'C5', title: '子育て世代のリフレッシュ', condition: '子ども連れでも安心して参加できる活動' },
+    { id: 'C6', title: 'アクティブシニアの健康維持', condition: '高齢者が無理なく交流しながら楽しめる活動' },
+    { id: 'C7', title: '地域の多世代交流', condition: '子どもからお年寄りまで一緒に楽しめる活動' },
+    { id: 'C8', title: '障害のある方のスポーツ参加', condition: '障害の有無に関わらず、誰もが自分のペースで楽しめる活動' }
+  ];
+
+  const valueCards = [
+    { id: 'V1', title: '健康', desc: '体力向上、生活習慣の改善、健康づくり' },
+    { id: 'V2', title: '楽しさ', desc: '「楽しい」「やってみたい」と感じる' },
+    { id: 'V3', title: '競争', desc: '勝敗、記録、順位を競う' },
+    { id: 'V4', title: '自己成長', desc: '努力、挑戦、達成感、自信' },
+    { id: 'V5', title: '人とのつながり', desc: '友人、家族、仲間との交流' },
+    { id: 'V6', title: 'ストレス解消', desc: '気分転換、リフレッシュ、心の健康' },
+    { id: 'V7', title: '教育', desc: 'ルール、協力、責任、学び' },
+    { id: 'V8', title: '地域交流', desc: '世代を超えた交流、地域のつながり' },
+    { id: 'V9', title: '社会参加', desc: '誰もが参加できる、孤立の防止' },
+    { id: 'V10', title: '地域活性化', desc: '人が集まる、地域の魅力を高める' },
+    { id: 'V11', title: '感動・応援', desc: '観戦、応援、共感、勇気を与える' },
+    { id: 'V12', title: '文化・アイデンティティ', desc: '地域や学校の誇り、文化の継承' }
+  ];
+
+  // ★ 価値カードと課題のマッチングテーブル（どの価値がどの課題に結びつきやすいか）
+  const valueToChallengeMapping = {
+    'C1': ['V1', 'V2', 'V4', 'V7'], // 小学生
+    'C2': ['V2', 'V3', 'V4', 'V5'], // 中高生
+    'C3': ['V1', 'V2', 'V5', 'V6'], // 大学生
+    'C4': ['V1', 'V3', 'V6', 'V11'], // 働き盛り
+    'C5': ['V2', 'V5', 'V6', 'V9'], // 子育て世代
+    'C6': ['V1', 'V5', 'V8', 'V9'], // シニア
+    'C7': ['V5', 'V8', 'V10', 'V12'], // 多世代
+    'C8': ['V2', 'V4', 'V9', 'V11'] // 障害のある方
+  };
+
+  // --- 状態管理 ---
+  let state = {
+    step: 1,
+    groupName: '',
+    challengeId: '',
+    selectedValues: [],
+    project: {
+      title: '', target: '', content: '', reason: '', ingenuity: '', createdValue: '',
+      budget: { equipment: 0, human: 0, prize: 0, pr: 0, other: 0 },
+      humanRes: '', place: '', time: '', catchcopy: '', message: ''
+    }
+  };
+
+  function init() {
+    const saved = localStorage.getItem('sportsValueGame');
+    if (saved) {
+      state = JSON.parse(saved);
+      if (typeof state.project.budget !== 'object') {
+        state.project.budget = { equipment: 0, human: 0, prize: 0, pr: 0, other: 0 };
+      }
+    }
+    render();
+  }
+
+  function saveState() {
+    localStorage.setItem('sportsValueGame', JSON.stringify(state));
+  }
+
+  function resetGame() {
+    if(confirm('データをご破算にして最初からやり直しますか？\n※価値カードも選び直しになります。')) {
+      localStorage.removeItem('sportsValueGame');
+      location.reload();
+    }
+  }
+
+  const app = document.getElementById('app');
+  const bottomNav = document.getElementById('bottomNav');
+  const stepIndicator = document.getElementById('stepIndicator');
+
+  function render() {
+    saveState();
+    app.innerHTML = '';
+    
+    const stepNames = ['', 'グループ登録', '価値の選択', '課題の決定', '企画の作成', '発表まとめ'];
+    stepIndicator.innerText = `STEP ${state.step}: ${stepNames[state.step] || ''}`;
+
+    bottomNav.style.display = 'flex';
+    document.getElementById('btnPrev').style.visibility = state.step > 1 ? 'visible' : 'hidden';
+
+    switch (state.step) {
+      case 1: renderStep1(); break;
+      case 2: renderStep2(); break; // 価値カード選択
+      case 3: renderStep3(); break; // 課題決定（マッチング）
+      case 4: renderStep4(); break; // 企画作成
+      case 5: renderStep5(); break; // まとめ
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function renderStep1() {
+    app.innerHTML = `
+      <div class="card">
+        <h2>グループ情報の入力</h2>
+        <p>教員の指示に従って、グループ名を入力してください。</p>
+        <label>グループ名</label>
+        <input type="text" id="inputGroupName" placeholder="例: Aグループ" value="${state.groupName}">
+      </div>
+      <button class="btn btn-secondary" onclick="resetGame()" style="margin-top:40px;">データをリセットする</button>
+    `;
+  }
+
+  function renderStep2() {
+    state.challengeId = ''; 
+
+    let html = `
+      <div class="card">
+        <h2>価値カードの選択</h2>
+        <p>自分たちのグループがスポーツを通じて<strong>届けたい価値を3枚</strong>選んでください。<br>※選んだ価値に応じて、次の画面で割り当てられる課題が変化します。</p>
+        <p style="text-align:center; font-weight:bold; color:var(--primary-color);">現在: <span id="selectCount">${state.selectedValues.length}</span> / 3枚</p>
+        <div class="card-grid">
+    `;
+    valueCards.forEach(card => {
+      const isSelected = state.selectedValues.includes(card.id);
+      html += `
+        <div class="value-card ${isSelected ? 'selected' : ''}" onclick="toggleValue('${card.id}')">
+          <h4>${card.title}</h4>
+          <p>${card.desc}</p>
+        </div>
+      `;
+    });
+    html += `</div></div>`;
+    app.innerHTML = html;
+  }
+
+  window.toggleValue = function(id) {
+    const index = state.selectedValues.indexOf(id);
+    if (index > -1) {
+      state.selectedValues.splice(index, 1);
+    } else {
+      if (state.selectedValues.length >= 3) {
+        alert('選択できるのは3枚までです。');
+        return;
+      }
+      state.selectedValues.push(id);
+    }
+    render();
+  }
+
+  function determineChallengeByValues() {
+    let scores = {};
+    challengeCards.forEach(c => scores[c.id] = 0);
+
+    state.selectedValues.forEach(valueId => {
+      for (let challengeId in valueToChallengeMapping) {
+        if (valueToChallengeMapping[challengeId].includes(valueId)) {
+          scores[challengeId]++;
+        }
+      }
+    });
+
+    let maxScore = -1;
+    let candidates = [];
+    for (let challengeId in scores) {
+      if (scores[challengeId] > maxScore) {
+        maxScore = scores[challengeId];
+        candidates = [challengeId];
+      } else if (scores[challengeId] === maxScore) {
+        candidates.push(challengeId);
+      }
+    }
+
+    const randIndex = Math.floor(Math.random() * candidates.length);
+    state.challengeId = candidates[randIndex];
+    saveState();
+  }
+
+  function renderStep3() {
+    if (!state.challengeId) {
+      determineChallengeByValues(); 
+    }
+    const challenge = challengeCards.find(c => c.id === state.challengeId);
+    app.innerHTML = `
+      <div class="card">
+        <h2>あなたのグループの課題</h2>
+        <p>あなたが選んだ価値（${state.selectedValues.map(id => valueCards.find(v => v.id === id).title).join('・')}）を分析した結果、以下の対象者が選ばれました！</p>
+        
+        <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; text-align: center; margin-top:20px;">
+          <h3 style="margin-bottom: 10px; color: var(--primary-color);">${challenge.title}</h3>
+          <p style="font-weight: bold; font-size: 18px; margin: 0;">${challenge.condition}</p>
+        </div>
+        <p style="margin-top: 20px;">この条件を満たすスポーツ活動を企画します。確認したら「次へ進む」を押してください。</p>
+      </div>
+    `;
+  }
+
+  function renderStep4() {
+    const b = state.project.budget;
+    app.innerHTML = `
+      <div class="card">
+        <h2>企画の作成</h2>
+        <p>割り当てられた課題と、選んだ3つの価値をもとに企画を作成します。</p>
+
+        <label>企画のキャッチコピー</label>
+        <input type="text" id="p_catchcopy" value="${state.project.catchcopy}" placeholder="例: 笑顔あふれる！健康スポーツ教室">
+
+        <label>企画名</label>
+        <input type="text" id="p_title" value="${state.project.title}">
+
+        <label>誰に届けるか（対象者）</label>
+        <input type="text" id="p_target" value="${state.project.target}">
+
+        <label>どのようなスポーツ活動か</label>
+        <textarea id="p_content">${state.project.content}</textarea>
+
+        <label>なぜその価値を重視したのか</label>
+        <textarea id="p_reason">${state.project.reason}</textarea>
+
+        <label>どのような工夫をするか</label>
+        <textarea id="p_ingenuity">${state.project.ingenuity}</textarea>
+
+        <label>どのような価値が生まれるか</label>
+        <textarea id="p_createdValue">${state.project.createdValue}</textarea>
+
+        <div class="resource-box">
+          <h3 style="margin-top: 0; font-size: 16px;">予算の振り分け（上限100ポイント）</h3>
+          <p style="font-size: 13px; color: #666; margin-bottom: 15px;">利用したい項目にポイントを割り振ってください。</p>
+          
+          <div class="budget-row">
+            <label>設備・道具（用具レンタル等）</label>
+            <div><input type="number" id="b_eq" min="0" max="100" value="${b.equipment}" oninput="calcBudget()"> pt</div>
+          </div>
+          <div class="budget-row">
+            <label>人材（専門指導者やゲスト等）</label>
+            <div><input type="number" id="b_hu" min="0" max="100" value="${b.human}" oninput="calcBudget()"> pt</div>
+          </div>
+          <div class="budget-row">
+            <label>景品・参加賞</label>
+            <div><input type="number" id="b_pr" min="0" max="100" value="${b.prize}" oninput="calcBudget()"> pt</div>
+          </div>
+          <div class="budget-row">
+            <label>広報・集客（SNS広告等）</label>
+            <div><input type="number" id="b_ad" min="0" max="100" value="${b.pr}" oninput="calcBudget()"> pt</div>
+          </div>
+          <div class="budget-row">
+            <label>その他（飲食・雑費等）</label>
+            <div><input type="number" id="b_ot" min="0" max="100" value="${b.other}" oninput="calcBudget()"> pt</div>
+          </div>
+          
+          <div style="text-align:right; font-weight:bold; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
+            合計: <span id="budgetTotal">0</span> / 100 pt
+            <div id="budgetWarning" style="color:red; font-size:12px; display:none; margin-top:5px;">※100ポイントを超えています！</div>
+          </div>
+
+          <h3 style="margin-top: 25px; font-size: 16px;">その他の資源</h3>
+          <label style="margin-top:0;">人材の使い方</label>
+          <input type="text" id="p_humanRes" value="${state.project.humanRes}" placeholder="例: メンバー2人が進行、3人がサポート">
+
+          <label>場所の使い方（1箇所）</label>
+          <input type="text" id="p_place" value="${state.project.place}" placeholder="例: 大学の体育館の半分を使用する">
+
+          <label>時間の使い方（2時間）</label>
+          <input type="text" id="p_time" value="${state.project.time}" placeholder="例: 準備30分、体験60分、交流30分">
+        </div>
+
+        <label>グループの最終メッセージ</label>
+        <textarea id="p_message" placeholder="例: 私たちは、運動が苦手な人に楽しさと交流を届けるため、誰もが参加できる体験会を企画しました。">${state.project.message}</textarea>
+      </div>
+    `;
+    setTimeout(calcBudget, 0); 
+  }
+
+  window.calcBudget = function() {
+    const eq = parseInt(document.getElementById('b_eq').value) || 0;
+    const hu = parseInt(document.getElementById('b_hu').value) || 0;
+    const pr = parseInt(document.getElementById('b_pr').value) || 0;
+    const ad = parseInt(document.getElementById('b_ad').value) || 0;
+    const ot = parseInt(document.getElementById('b_ot').value) || 0;
+    const total = eq + hu + pr + ad + ot;
+    
+    document.getElementById('budgetTotal').innerText = total;
+    if (total > 100) {
+      document.getElementById('budgetTotal').style.color = 'red';
+      document.getElementById('budgetWarning').style.display = 'block';
+    } else {
+      document.getElementById('budgetTotal').style.color = 'black';
+      document.getElementById('budgetWarning').style.display = 'none';
+    }
+  };
+
+  function renderStep5() {
+    const challenge = challengeCards.find(c => c.id === state.challengeId);
+    const values = state.selectedValues.map(id => valueCards.find(v => v.id === id).title).join('、');
+    const b = state.project.budget;
+    const totalBudget = b.equipment + b.human + b.prize + b.pr + b.other;
+
+    bottomNav.style.display = 'none';
+
+    app.innerHTML = `
+      <div class="card">
+        <h2 style="text-align:center;">発表用シート</h2>
+        
+        <div class="summary-item">
+          <div class="summary-label">グループ名</div>
+          <div class="summary-value">${state.groupName || '未入力'}</div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">キャッチコピー</div>
+          <div class="summary-value" style="color: var(--primary-color); font-size: 18px;">
+            ${state.project.catchcopy || '未入力'}
+          </div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">企画名</div>
+          <div class="summary-value" style="font-size: 22px;">
+            ${state.project.title || '未入力'}
+          </div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">課題条件</div>
+          <div class="summary-value">${challenge ? `【${challenge.title}】<br>${challenge.condition}` : ''}</div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">重視した価値（3つ）</div>
+          <div class="summary-value">${values || '未選択'}</div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">対象者</div>
+          <div class="summary-value">${state.project.target || '未入力'}</div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">活動内容</div>
+          <div class="summary-value" style="white-space: pre-wrap;">${state.project.content || '未入力'}</div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">価値を重視した理由</div>
+          <div class="summary-value" style="white-space: pre-wrap;">${state.project.reason || '未入力'}</div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">工夫した点</div>
+          <div class="summary-value" style="white-space: pre-wrap;">${state.project.ingenuity || '未入力'}</div>
+        </div>
+
+        <div class="summary-item">
+          <div class="summary-label">生み出される価値</div>
+          <div class="summary-value" style="white-space: pre-wrap;">${state.project.createdValue || '未入力'}</div>
+        </div>
+
+        <div class="summary-item resource-box">
+          <div class="summary-label" style="margin-bottom: 8px;">資源の使い方</div>
+          <div class="summary-value" style="font-size: 14px;">
+            <div style="margin-bottom: 8px; line-height: 1.4;">
+              <strong>【予算】 合計: ${totalBudget}pt</strong><br>
+              <span style="font-size: 13px; color: #555;">
+                設備・道具: ${b.equipment}pt / 人材: ${b.human}pt / 景品: ${b.prize}pt<br>
+                広報・集客: ${b.pr}pt / その他: ${b.other}pt
+              </span>
+            </div>
+            <div style="margin-bottom: 5px;"><strong>【人材】</strong> ${state.project.humanRes || '未入力'}</div>
+            <div style="margin-bottom: 5px;"><strong>【場所】</strong> ${state.project.place || '未入力'}</div>
+            <div><strong>【時間】</strong> ${state.project.time || '未入力'}</div>
+          </div>
+        </div>
+
+        <div class="summary-item" style="margin-top: 15px;">
+          <div class="summary-label">最終メッセージ</div>
+          <div class="summary-value" style="white-space: pre-wrap; font-size: 18px; color: var(--text-color);">
+            「${state.project.message || '未入力'}」
+          </div>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center;">
+          <p style="color: red; font-weight: bold; font-size: 14px;">内容を確認し、問題なければ教員へ提出してください。</p>
+          <button class="btn" id="submitBtn" onclick="submitToGoogleSheet()" style="background-color: #28a745; font-size: 20px; padding: 18px;">提出する</button>
+          <button class="btn btn-secondary" onclick="prevStep()" style="margin-top: 15px;">編集画面に戻る</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ★ スプレッドシートへの送信処理（CORS対応版）
+  window.submitToGoogleSheet = function() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerText = "送信中...";
+
+    const challenge = challengeCards.find(c => c.id === state.challengeId);
+    const values = state.selectedValues.map(id => valueCards.find(v => v.id === id).title).join('、');
+    const b = state.project.budget;
+    const budgetText = `合計: ${b.equipment + b.human + b.prize + b.pr + b.other}pt (設備:${b.equipment} 人材:${b.human} 景品:${b.prize} 広報:${b.pr} その他:${b.other})`;
+
+    const payload = {
+      groupName: state.groupName,
+      catchcopy: state.project.catchcopy,
+      title: state.project.title,
+      challenge: challenge ? `【${challenge.title}】\n${challenge.condition}` : '',
+      values: values,
+      target: state.project.target,
+      content: state.project.content,
+      reason: state.project.reason,
+      ingenuity: state.project.ingenuity,
+      createdValue: state.project.createdValue,
+      budget: budgetText,
+      humanRes: state.project.humanRes,
+      place: state.project.place,
+      time: state.project.time,
+      message: state.project.message
+    };
+
+    fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors', // ★追加：ローカルファイルからのCORSエラーを回避する魔法の設定
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    })
+    .then(response => {
+      // no-corsモードでは詳細な返事は受け取れないが、エラーが起きなければ成功とみなす
+      btn.innerText = "提出完了しました！";
+      btn.style.backgroundColor = "#6c757d";
+      alert("教員のプロジェクターへ提出が完了しました！\n発表の順番を待ってください。");
+    })
+    .catch(error => {
+      console.error(error);
+      alert("送信に失敗しました。通信環境の良いところで再度お試しください。");
+      btn.disabled = false;
+      btn.innerText = "提出する";
+    });
+  };
+
+  function saveCurrentStepData() {
+    if (state.step === 1) {
+      state.groupName = document.getElementById('inputGroupName').value;
+    }
+    if (state.step === 4) {
+      state.project.title = document.getElementById('p_title').value;
+      state.project.target = document.getElementById('p_target').value;
+      state.project.content = document.getElementById('p_content').value;
+      state.project.reason = document.getElementById('p_reason').value;
+      state.project.ingenuity = document.getElementById('p_ingenuity').value;
+      state.project.createdValue = document.getElementById('p_createdValue').value;
+      
+      state.project.budget.equipment = parseInt(document.getElementById('b_eq').value) || 0;
+      state.project.budget.human = parseInt(document.getElementById('b_hu').value) || 0;
+      state.project.budget.prize = parseInt(document.getElementById('b_pr').value) || 0;
+      state.project.budget.pr = parseInt(document.getElementById('b_ad').value) || 0;
+      state.project.budget.other = parseInt(document.getElementById('b_ot').value) || 0;
+      
+      state.project.humanRes = document.getElementById('p_humanRes').value;
+      state.project.place = document.getElementById('p_place').value;
+      state.project.time = document.getElementById('p_time').value;
+      state.project.catchcopy = document.getElementById('p_catchcopy').value;
+      state.project.message = document.getElementById('p_message').value;
+    }
+    saveState();
+  }
+
+  window.nextStep = function() {
+    saveCurrentStepData();
+
+    if (state.step === 1 && !state.groupName) {
+      alert('グループ名を入力してください');
+      return;
+    }
+    if (state.step === 2 && state.selectedValues.length !== 3) {
+      alert('価値カードを3枚選んでください');
+      return;
+    }
+    if (state.step === 4) {
+      const b = state.project.budget;
+      const total = b.equipment + b.human + b.prize + b.pr + b.other;
+      if (total > 100) {
+        alert('予算の合計が100ポイントを超えています。数値を調整してください。');
+        return;
+      }
+    }
+
+    if (state.step < 5) {
+      state.step++;
+      render();
+    }
+  }
+
+  window.prevStep = function() {
+    saveCurrentStepData();
+    if (state.step > 1) {
+      state.step--;
+      render();
+    }
+  }
+
+  init();
+</script>
+
+</body>
+</html>
