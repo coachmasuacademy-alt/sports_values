@@ -189,7 +189,7 @@
       color: #333;
     }
     .budget-row input[type="number"] {
-      width: 70px;
+      width: 100px; /* 桁数が増えるため幅を少し広げました */
       padding: 6px;
       border: 1px solid #ccc;
       border-radius: 4px;
@@ -256,13 +256,14 @@
 
   // --- 状態管理 ---
   let state = {
-    step: 1, // STEP1から開始（タイトル画面）
+    step: 1, 
     groupName: '',
     challengeId: '',
     selectedValues: [],
     project: {
       title: '', target: '', content: '', reason: '', ingenuity: '', createdValue: '',
-      budget: { equipment: 0, human: 0, prize: 0, pr: 0, other: 0 },
+      // ★ 収入の項目を追加
+      budget: { fee: 0, participants: 0, sponsor: 0, equipment: 0, human: 0, prize: 0, pr: 0, other: 0 },
       humanRes: '', place: '', time: '', catchcopy: '', message: ''
     }
   };
@@ -271,8 +272,13 @@
     const saved = localStorage.getItem('sportsValueGame');
     if (saved) {
       state = JSON.parse(saved);
+      // 古いデータの互換性チェック
       if (typeof state.project.budget !== 'object') {
-        state.project.budget = { equipment: 0, human: 0, prize: 0, pr: 0, other: 0 };
+        state.project.budget = { fee: 0, participants: 0, sponsor: 0, equipment: 0, human: 0, prize: 0, pr: 0, other: 0 };
+      } else {
+        if (state.project.budget.fee === undefined) state.project.budget.fee = 0;
+        if (state.project.budget.participants === undefined) state.project.budget.participants = 0;
+        if (state.project.budget.sponsor === undefined) state.project.budget.sponsor = 0;
       }
     }
     render();
@@ -297,7 +303,6 @@
     saveState();
     app.innerHTML = '';
     
-    // ★ ステップの名称に「ゲームのルール」を追加し、以降を一つずつずらしました
     const stepNames = ['', 'ゲームのルール', 'グループ登録', '価値の選択', '課題の決定', '企画の作成', '発表まとめ'];
     stepIndicator.innerText = `STEP ${state.step}: ${stepNames[state.step] || ''}`;
 
@@ -305,17 +310,16 @@
     document.getElementById('btnPrev').style.visibility = state.step > 1 ? 'visible' : 'hidden';
 
     switch (state.step) {
-      case 1: renderStep1(); break; // タイトル＆ルール画面
-      case 2: renderStep2(); break; // グループ登録
-      case 3: renderStep3(); break; // 価値カード選択
-      case 4: renderStep4(); break; // 課題決定（マッチング）
-      case 5: renderStep5(); break; // 企画作成
-      case 6: renderStep6(); break; // まとめ・提出
+      case 1: renderStep1(); break;
+      case 2: renderStep2(); break;
+      case 3: renderStep3(); break;
+      case 4: renderStep4(); break;
+      case 5: renderStep5(); break;
+      case 6: renderStep6(); break;
     }
     window.scrollTo(0, 0);
   }
 
-  // ★ 新設：STEP 1 (タイトル＆ルール画面)
   function renderStep1() {
     app.innerHTML = `
       <div class="card">
@@ -335,7 +339,7 @@
           <li><strong>【グループ登録】</strong> チーム名を決めます。</li>
           <li><strong>【価値の選択】</strong> スポーツを通じて社会に届けたい「価値」を3つ選びます。</li>
           <li><strong>【課題の決定】</strong> 選んだ価値をもとに、対象者と課題が割り当てられます。</li>
-          <li><strong>【企画の作成】</strong> 課題を解決し、価値を届ける活動を企画します。予算（100pt）の使い方も考えます。</li>
+          <li><strong>【企画の作成】</strong> 課題を解決し、価値を届ける活動を企画します。予算（参加費×人数＋協賛金）も設定します。</li>
           <li><strong>【提出・発表】</strong> 企画をまとめ、教員のプロジェクターへ提出して発表を行います。</li>
         </ol>
         
@@ -346,7 +350,6 @@
     `;
   }
 
-  // 以降、STEP2〜6（元のSTEP1〜5）
   function renderStep2() {
     app.innerHTML = `
       <div class="card">
@@ -471,33 +474,52 @@
         <textarea id="p_createdValue">${state.project.createdValue}</textarea>
 
         <div class="resource-box">
-          <h3 style="margin-top: 0; font-size: 16px;">予算の振り分け（上限100ポイント）</h3>
-          <p style="font-size: 13px; color: #666; margin-bottom: 15px;">利用したい項目にポイントを割り振ってください。</p>
+          <h3 style="margin-top: 0; font-size: 16px;">予算の作成と振り分け</h3>
           
+          <p style="font-size: 13px; color: #666; margin-bottom: 10px;">① まず、収入（使える総予算）を計算します。</p>
           <div class="budget-row">
-            <label>設備・道具（用具レンタル等）</label>
-            <div><input type="number" id="b_eq" min="0" max="100" value="${b.equipment}" oninput="calcBudget()"> pt</div>
+            <label>参加費（1人あたり）</label>
+            <div><input type="number" id="b_fee" min="0" value="${b.fee}" oninput="calcBudget()"> 円</div>
           </div>
           <div class="budget-row">
-            <label>人材（専門指導者やゲスト等）</label>
-            <div><input type="number" id="b_hu" min="0" max="100" value="${b.human}" oninput="calcBudget()"> pt</div>
+            <label>想定参加人数</label>
+            <div><input type="number" id="b_pax" min="0" value="${b.participants}" oninput="calcBudget()"> 人</div>
+          </div>
+          <div class="budget-row">
+            <label>協賛金・広告収入など</label>
+            <div><input type="number" id="b_spo" min="0" value="${b.sponsor}" oninput="calcBudget()"> 円</div>
+          </div>
+          
+          <div style="text-align:right; font-weight:bold; margin-top:5px; margin-bottom:20px; font-size: 18px; color: var(--primary-color);">
+            総予算（収入）: <span id="budgetRevenue">0</span> 円
+          </div>
+
+          <p style="font-size: 13px; color: #666; margin-bottom: 10px;">② 次に、総予算の範囲内で支出を振り分けてください。</p>
+          <div class="budget-row">
+            <label>設備・道具（用具・場所代等）</label>
+            <div><input type="number" id="b_eq" min="0" value="${b.equipment}" oninput="calcBudget()"> 円</div>
+          </div>
+          <div class="budget-row">
+            <label>人材（指導者・ゲスト等）</label>
+            <div><input type="number" id="b_hu" min="0" value="${b.human}" oninput="calcBudget()"> 円</div>
           </div>
           <div class="budget-row">
             <label>景品・参加賞</label>
-            <div><input type="number" id="b_pr" min="0" max="100" value="${b.prize}" oninput="calcBudget()"> pt</div>
+            <div><input type="number" id="b_pr" min="0" value="${b.prize}" oninput="calcBudget()"> 円</div>
           </div>
           <div class="budget-row">
-            <label>広報・集客（SNS広告等）</label>
-            <div><input type="number" id="b_ad" min="0" max="100" value="${b.pr}" oninput="calcBudget()"> pt</div>
+            <label>広報・集客（ポスター・広告等）</label>
+            <div><input type="number" id="b_ad" min="0" value="${b.pr}" oninput="calcBudget()"> 円</div>
           </div>
           <div class="budget-row">
-            <label>その他（飲食・雑費等）</label>
-            <div><input type="number" id="b_ot" min="0" max="100" value="${b.other}" oninput="calcBudget()"> pt</div>
+            <label>その他（飲食・保険・雑費等）</label>
+            <div><input type="number" id="b_ot" min="0" value="${b.other}" oninput="calcBudget()"> 円</div>
           </div>
           
           <div style="text-align:right; font-weight:bold; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
-            合計: <span id="budgetTotal">0</span> / 100 pt
-            <div id="budgetWarning" style="color:red; font-size:12px; display:none; margin-top:5px;">※100ポイントを超えています！</div>
+            支出合計: <span id="budgetExpense">0</span> 円
+            <div id="budgetWarning" style="color:red; font-size:12px; display:none; margin-top:5px;">※支出が総予算をオーバーしています！</div>
+            <div id="budgetRemain" style="color:#28a745; font-size:12px; margin-top:5px;">残金: 0 円</div>
           </div>
 
           <h3 style="margin-top: 25px; font-size: 16px;">その他の資源</h3>
@@ -518,21 +540,35 @@
     setTimeout(calcBudget, 0); 
   }
 
+  // ★ 収入と支出のリアルタイム計算処理
   window.calcBudget = function() {
+    // 収入計算
+    const fee = parseInt(document.getElementById('b_fee').value) || 0;
+    const pax = parseInt(document.getElementById('b_pax').value) || 0;
+    const spo = parseInt(document.getElementById('b_spo').value) || 0;
+    const rev = (fee * pax) + spo;
+    document.getElementById('budgetRevenue').innerText = rev.toLocaleString();
+
+    // 支出計算
     const eq = parseInt(document.getElementById('b_eq').value) || 0;
     const hu = parseInt(document.getElementById('b_hu').value) || 0;
     const pr = parseInt(document.getElementById('b_pr').value) || 0;
     const ad = parseInt(document.getElementById('b_ad').value) || 0;
     const ot = parseInt(document.getElementById('b_ot').value) || 0;
-    const total = eq + hu + pr + ad + ot;
+    const exp = eq + hu + pr + ad + ot;
+    document.getElementById('budgetExpense').innerText = exp.toLocaleString();
     
-    document.getElementById('budgetTotal').innerText = total;
-    if (total > 100) {
-      document.getElementById('budgetTotal').style.color = 'red';
+    // 判定
+    const remain = rev - exp;
+    if (exp > rev) {
+      document.getElementById('budgetExpense').style.color = 'red';
       document.getElementById('budgetWarning').style.display = 'block';
+      document.getElementById('budgetRemain').style.display = 'none';
     } else {
-      document.getElementById('budgetTotal').style.color = 'black';
+      document.getElementById('budgetExpense').style.color = 'black';
       document.getElementById('budgetWarning').style.display = 'none';
+      document.getElementById('budgetRemain').style.display = 'block';
+      document.getElementById('budgetRemain').innerText = `残金: ${remain.toLocaleString()} 円`;
     }
   };
 
@@ -540,7 +576,10 @@
     const challenge = challengeCards.find(c => c.id === state.challengeId);
     const values = state.selectedValues.map(id => valueCards.find(v => v.id === id).title).join('、');
     const b = state.project.budget;
-    const totalBudget = b.equipment + b.human + b.prize + b.pr + b.other;
+    
+    // まとめ画面での金額計算
+    const rev = (b.fee * b.participants) + b.sponsor;
+    const exp = b.equipment + b.human + b.prize + b.pr + b.other;
 
     bottomNav.style.display = 'none';
 
@@ -605,11 +644,11 @@
         <div class="summary-item resource-box">
           <div class="summary-label" style="margin-bottom: 8px;">資源の使い方</div>
           <div class="summary-value" style="font-size: 14px;">
-            <div style="margin-bottom: 8px; line-height: 1.4;">
-              <strong>【予算】 合計: ${totalBudget}pt</strong><br>
+            <div style="margin-bottom: 8px; line-height: 1.4; padding-bottom: 8px; border-bottom: 1px dashed #ccc;">
+              <strong style="font-size: 15px; color: var(--primary-color);">【予算】 収入: ${rev.toLocaleString()}円 / 支出: ${exp.toLocaleString()}円</strong><br>
               <span style="font-size: 13px; color: #555;">
-                設備・道具: ${b.equipment}pt / 人材: ${b.human}pt / 景品: ${b.prize}pt<br>
-                広報・集客: ${b.pr}pt / その他: ${b.other}pt
+                [収入] 参加費: ${b.fee.toLocaleString()}円 × ${b.participants}人 ＋ 協賛金: ${b.sponsor.toLocaleString()}円<br>
+                [支出] 設備: ${b.equipment.toLocaleString()}円 / 人材: ${b.human.toLocaleString()}円 / 景品: ${b.prize.toLocaleString()}円 / 広報: ${b.pr.toLocaleString()}円 / その他: ${b.other.toLocaleString()}円
               </span>
             </div>
             <div style="margin-bottom: 5px;"><strong>【人材】</strong> ${state.project.humanRes || '未入力'}</div>
@@ -641,8 +680,12 @@
 
     const challenge = challengeCards.find(c => c.id === state.challengeId);
     const values = state.selectedValues.map(id => valueCards.find(v => v.id === id).title).join('、');
+    
+    // 送信用の予算テキストを作成
     const b = state.project.budget;
-    const budgetText = `合計: ${b.equipment + b.human + b.prize + b.pr + b.other}pt (設備:${b.equipment} 人材:${b.human} 景品:${b.prize} 広報:${b.pr} その他:${b.other})`;
+    const rev = (b.fee * b.participants) + b.sponsor;
+    const exp = b.equipment + b.human + b.prize + b.pr + b.other;
+    const budgetText = `【収入】 ${rev.toLocaleString()}円\n (参加費${b.fee.toLocaleString()}円×${b.participants}人 ＋ 協賛金${b.sponsor.toLocaleString()}円)\n\n【支出】 ${exp.toLocaleString()}円\n (設備:${b.equipment.toLocaleString()} 人材:${b.human.toLocaleString()} 景品:${b.prize.toLocaleString()} 広報:${b.pr.toLocaleString()} その他:${b.other.toLocaleString()})`;
 
     const payload = {
       groupName: state.groupName,
@@ -655,7 +698,7 @@
       reason: state.project.reason,
       ingenuity: state.project.ingenuity,
       createdValue: state.project.createdValue,
-      budget: budgetText,
+      budget: budgetText, // 作成したテキストを送信
       humanRes: state.project.humanRes,
       place: state.project.place,
       time: state.project.time,
@@ -693,6 +736,12 @@
       state.project.ingenuity = document.getElementById('p_ingenuity').value;
       state.project.createdValue = document.getElementById('p_createdValue').value;
       
+      // 収入
+      state.project.budget.fee = parseInt(document.getElementById('b_fee').value) || 0;
+      state.project.budget.participants = parseInt(document.getElementById('b_pax').value) || 0;
+      state.project.budget.sponsor = parseInt(document.getElementById('b_spo').value) || 0;
+      
+      // 支出
       state.project.budget.equipment = parseInt(document.getElementById('b_eq').value) || 0;
       state.project.budget.human = parseInt(document.getElementById('b_hu').value) || 0;
       state.project.budget.prize = parseInt(document.getElementById('b_pr').value) || 0;
@@ -721,9 +770,10 @@
     }
     if (state.step === 5) {
       const b = state.project.budget;
-      const total = b.equipment + b.human + b.prize + b.pr + b.other;
-      if (total > 100) {
-        alert('予算の合計が100ポイントを超えています。数値を調整してください。');
+      const rev = (b.fee * b.participants) + b.sponsor;
+      const exp = b.equipment + b.human + b.prize + b.pr + b.other;
+      if (exp > rev) {
+        alert('支出合計が総予算（収入）をオーバーしています。金額を調整してください。');
         return;
       }
     }
